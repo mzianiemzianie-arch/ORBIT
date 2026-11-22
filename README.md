@@ -6,9 +6,13 @@ A modern Android web browser.
 - Name: ORBIT
 - Platform: Android
 - Language: Kotlin
-- UI: Jetpack Compose
+- UI: Native Android Views
 - Web Engine: Android System WebView
-- Database: Room / SQLite
+- Minimum Android: 7.0
+- Database: Planned SQLite / Room
 
 ## Developer
 HAROUN
+
+## Build
+GitHub Actions automatically builds the Android APK.
