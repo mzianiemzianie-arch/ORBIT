@@ -49,7 +49,7 @@ class MainActivity : Activity() {
         addressBar = EditText(this).apply {
             hint = "Search or enter website"
             textSize = 14f
-            singleLine = true
+            setSingleLine(true)
             setTextColor(Color.WHITE)
             setHintTextColor(Color.LTGRAY)
             setPadding(12, 8, 12, 8)
