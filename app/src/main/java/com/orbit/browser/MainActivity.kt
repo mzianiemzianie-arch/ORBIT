@@ -11,6 +11,7 @@ import android.view.Gravity
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.content.Context
+import android.content.res.ColorStateList
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.WebChromeClient
@@ -20,7 +21,6 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.ProgressBar
 import android.widget.ScrollView
-import android.widget.Toast
 import java.net.URLEncoder
 
 class MainActivity : Activity() {
@@ -30,18 +30,29 @@ class MainActivity : Activity() {
     private lateinit var progressBar: ProgressBar
     private lateinit var homeScreen: ScrollView
 
-    private val backgroundColor = Color.rgb(10, 16, 30)
-    private val surfaceColor = Color.rgb(21, 31, 49)
+    // ORBIT Minimal Premium palette
+    private val backgroundColor = Color.rgb(9, 11, 15)
+    private val surfaceColor = Color.rgb(20, 23, 30)
+    private val elevatedColor = Color.rgb(27, 31, 39)
     private val accentColor = Color.rgb(0, 210, 190)
-    private val secondaryText = Color.rgb(155, 170, 190)
+    private val primaryText = Color.rgb(245, 247, 250)
+    private val secondaryText = Color.rgb(145, 153, 166)
+    private val borderColor = Color.rgb(43, 48, 58)
 
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
 
-    private fun rounded(color: Int, radius: Int): GradientDrawable {
+    private fun rounded(
+        color: Int,
+        radius: Int,
+        strokeColor: Int? = null
+    ): GradientDrawable {
         return GradientDrawable().apply {
             setColor(color)
             cornerRadius = dp(radius).toFloat()
+            if (strokeColor != null) {
+                setStroke(dp(1), strokeColor)
+            }
         }
     }
 
@@ -66,11 +77,12 @@ class MainActivity : Activity() {
     ): TextView {
         return TextView(this).apply {
             text = label
-            textSize = 17f
+            textSize = 21f
             gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
+            setTextColor(primaryText)
             background = rounded(surfaceColor, 16)
-            setPadding(dp(15), dp(12), dp(15), dp(12))
+            isClickable = true
+            isFocusable = true
             setOnClickListener { action() }
         }
     }
@@ -81,74 +93,86 @@ class MainActivity : Activity() {
         window.statusBarColor = backgroundColor
         window.navigationBarColor = backgroundColor
 
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            window.isNavigationBarContrastEnforced = false
+            window.isStatusBarContrastEnforced = false
+        }
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(backgroundColor)
         }
 
-        // TOP HEADER
+        // TOP BRAND HEADER
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(16), dp(16), dp(16), dp(12))
+            setPadding(dp(18), dp(15), dp(18), dp(13))
         }
 
-        val logo = TextView(this).apply {
+        val logoMark = TextView(this).apply {
             text = "◉"
-            textSize = 29f
+            textSize = 27f
             setTextColor(accentColor)
             gravity = Gravity.CENTER
         }
 
         val logoText = TextView(this).apply {
             text = "ORBIT"
-            textSize = 21f
-            setTextColor(Color.WHITE)
+            textSize = 20f
+            setTextColor(primaryText)
             setTypeface(null, Typeface.BOLD)
+            letterSpacing = 0.13f
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(7), 0, dp(12), 0)
+            setPadding(dp(7), 0, dp(14), 0)
         }
 
         val brand = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            addView(logo, LinearLayout.LayoutParams(dp(30), dp(42)))
+            addView(logoMark, LinearLayout.LayoutParams(dp(30), dp(44)))
             addView(logoText)
         }
 
         addressBar = EditText(this).apply {
-            hint = "Search or enter website"
-            textSize = 14f
+            hint = "Search or enter address"
+            textSize = 13.5f
             setSingleLine(true)
-            setTextColor(Color.WHITE)
+            setTextColor(primaryText)
             setHintTextColor(secondaryText)
             setPadding(dp(14), 0, dp(12), 0)
             imeOptions = EditorInfo.IME_ACTION_GO
-            setBackground(rounded(surfaceColor, 18))
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                android.text.InputType.TYPE_TEXT_VARIATION_URI
+            background = rounded(surfaceColor, 15, borderColor)
             setSelectAllOnFocus(false)
+            maxLines = 1
         }
 
         val searchButton = TextView(this).apply {
-            text = "➜"
-            textSize = 22f
+            text = "→"
+            textSize = 23f
             gravity = Gravity.CENTER
             setTextColor(backgroundColor)
-            background = rounded(accentColor, 16)
+            background = rounded(primaryText, 15)
+            isClickable = true
+            isFocusable = true
             setOnClickListener { navigate() }
         }
 
         header.addView(brand)
         header.addView(
             addressBar,
-            LinearLayout.LayoutParams(0, dp(48), 1f)
+            LinearLayout.LayoutParams(0, dp(47), 1f)
         )
         header.addView(
             searchButton,
-            LinearLayout.LayoutParams(dp(48), dp(48)).apply {
-                leftMargin = dp(8)
+            LinearLayout.LayoutParams(dp(47), dp(47)).apply {
+                marginStart = dp(8)
             }
         )
 
+        // PAGE LOADING INDICATOR
         progressBar = ProgressBar(
             this,
             null,
@@ -156,7 +180,9 @@ class MainActivity : Activity() {
         ).apply {
             max = 100
             progress = 0
-            progressTintList = android.content.res.ColorStateList.valueOf(accentColor)
+            progressTintList = ColorStateList.valueOf(accentColor)
+            progressBackgroundTintList =
+                ColorStateList.valueOf(surfaceColor)
             visibility = View.GONE
         }
 
@@ -169,32 +195,76 @@ class MainActivity : Activity() {
 
         val homeContent = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(30), dp(20), dp(24))
+            setPadding(dp(21), dp(37), dp(21), dp(28))
         }
 
-        val welcome = makeText("Welcome to", 15f, secondaryText)
-        val title = makeText("Your world. Your ORBIT.", 25f, Color.WHITE, true)
+        val welcome = makeText(
+            "WELCOME TO",
+            11f,
+            secondaryText,
+            true
+        ).apply {
+            letterSpacing = 0.2f
+        }
+
+        val title = makeText(
+            "Your world.",
+            34f,
+            primaryText,
+            true
+        )
+
+        val titleSecond = makeText(
+            "Your ORBIT.",
+            34f,
+            primaryText,
+            true
+        )
+
         val subtitle = makeText(
             "Explore the internet your way.",
             14f,
             secondaryText
-        )
+        ).apply {
+            setPadding(0, dp(9), 0, 0)
+        }
 
         homeContent.addView(welcome)
         homeContent.addView(title)
+        homeContent.addView(titleSecond)
         homeContent.addView(subtitle)
+
+        // QUICK ACCESS SECTION
+        val sectionHeader = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(39), 0, dp(15))
+        }
 
         val sectionTitle = makeText(
             "QUICK ACCESS",
-            12f,
-            accentColor,
+            11f,
+            secondaryText,
             true
         ).apply {
-            letterSpacing = 0.12f
-            setPadding(0, dp(38), 0, dp(15))
+            letterSpacing = 0.14f
         }
 
-        homeContent.addView(sectionTitle)
+        sectionHeader.addView(
+            sectionTitle,
+            LinearLayout.LayoutParams(0, dp(25), 1f)
+        )
+
+        val sectionLine = View(this).apply {
+            setBackgroundColor(borderColor)
+        }
+
+        sectionHeader.addView(
+            sectionLine,
+            LinearLayout.LayoutParams(dp(75), dp(1))
+        )
+
+        homeContent.addView(sectionHeader)
 
         val shortcuts = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -217,37 +287,70 @@ class MainActivity : Activity() {
             val card = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
-                background = rounded(surfaceColor, 20)
-                setPadding(dp(8), dp(18), dp(8), dp(18))
+                background = rounded(surfaceColor, 18, borderColor)
+                setPadding(dp(8), dp(16), dp(8), dp(15))
                 isClickable = true
                 isFocusable = true
                 setOnClickListener { openUrl(url) }
             }
 
-            val icon = makeText(symbol, 25f, accentColor, true).apply {
+            val iconBox = TextView(this).apply {
+                text = symbol
+                textSize = 22f
+                setTypeface(null, Typeface.BOLD)
+                setTextColor(accentColor)
                 gravity = Gravity.CENTER
+                background = rounded(elevatedColor, 14)
             }
 
-            val label = makeText(name, 13f, Color.WHITE, true).apply {
+            val label = makeText(
+                name,
+                12f,
+                primaryText,
+                true
+            ).apply {
                 gravity = Gravity.CENTER
-                setPadding(0, dp(8), 0, 0)
+                setPadding(0, dp(10), 0, 0)
             }
 
-            card.addView(icon)
+            card.addView(
+                iconBox,
+                LinearLayout.LayoutParams(dp(47), dp(47))
+            )
             card.addView(label)
 
             row.addView(
                 card,
-                LinearLayout.LayoutParams(0, dp(105), 1f).apply {
-                    marginEnd = dp(8)
+                LinearLayout.LayoutParams(0, dp(112), 1f).apply {
+                    marginEnd = dp(7)
                 }
             )
         }
 
-        addShortcut(rowOne, "D", "DuckDuckGo", "https://duckduckgo.com")
-        addShortcut(rowOne, "▶", "YouTube", "https://www.youtube.com")
-        addShortcut(rowTwo, "f", "Facebook", "https://www.facebook.com")
-        addShortcut(rowTwo, "W", "Wikipedia", "https://www.wikipedia.org")
+        addShortcut(
+            rowOne,
+            "D",
+            "DuckDuckGo",
+            "https://duckduckgo.com"
+        )
+        addShortcut(
+            rowOne,
+            "▶",
+            "YouTube",
+            "https://www.youtube.com"
+        )
+        addShortcut(
+            rowTwo,
+            "f",
+            "Facebook",
+            "https://www.facebook.com"
+        )
+        addShortcut(
+            rowTwo,
+            "W",
+            "Wikipedia",
+            "https://www.wikipedia.org"
+        )
 
         shortcuts.addView(rowOne)
         shortcuts.addView(
@@ -256,52 +359,76 @@ class MainActivity : Activity() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply {
-                topMargin = dp(10)
+                topMargin = dp(9)
             }
         )
 
         homeContent.addView(shortcuts)
 
-        val privacyCard = LinearLayout(this).apply {
+        // ORBIT INFORMATION CARD
+        val infoCard = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = rounded(surfaceColor, 20)
-            setPadding(dp(18), dp(18), dp(18), dp(18))
+            background = rounded(surfaceColor, 19, borderColor)
+            setPadding(dp(18), dp(17), dp(18), dp(17))
         }
 
-        val privacyTitle = makeText(
-            "✦  Browse with ORBIT",
-            16f,
-            Color.WHITE,
+        val infoTop = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        val infoDot = TextView(this).apply {
+            text = "●"
+            textSize = 12f
+            setTextColor(accentColor)
+            gravity = Gravity.CENTER
+        }
+
+        val infoTitle = makeText(
+            "A better way to browse",
+            15f,
+            primaryText,
             true
-        )
+        ).apply {
+            setPadding(dp(9), 0, 0, 0)
+        }
 
-        val privacyDescription = makeText(
-            "A new way to explore the web is waiting for you.",
-            13f,
+        infoTop.addView(infoDot)
+        infoTop.addView(infoTitle)
+        infoCard.addView(infoTop)
+
+        val infoDescription = makeText(
+            "Discover the web with a clean and simple experience.",
+            12f,
             secondaryText
-        )
+        ).apply {
+            setPadding(0, dp(9), 0, 0)
+        }
 
-        privacyCard.addView(privacyTitle)
-        privacyCard.addView(
-            privacyDescription,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = dp(8)
-            }
-        )
+        infoCard.addView(infoDescription)
 
         homeContent.addView(
-            privacyCard,
+            infoCard,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply {
-                topMargin = dp(28)
+                topMargin = dp(25)
             }
         )
 
+        val footer = makeText(
+            "ORBIT  •  YOUR WORLD, YOUR WAY",
+            10f,
+            secondaryText,
+            true
+        ).apply {
+            gravity = Gravity.CENTER
+            letterSpacing = 0.1f
+            setPadding(0, dp(26), 0, dp(12))
+        }
+
+        homeContent.addView(footer)
         homeScreen.addView(homeContent)
 
         // WEB VIEW
@@ -314,6 +441,7 @@ class MainActivity : Activity() {
             settings.safeBrowsingEnabled = true
 
             webViewClient = object : WebViewClient() {
+
                 override fun onPageStarted(
                     view: WebView?,
                     url: String?,
@@ -325,7 +453,10 @@ class MainActivity : Activity() {
                     progressBar.visibility = View.VISIBLE
                 }
 
-                override fun onPageFinished(view: WebView?, url: String?) {
+                override fun onPageFinished(
+                    view: WebView?,
+                    url: String?
+                ) {
                     addressBar.setText(url ?: "")
                     progressBar.visibility = View.GONE
 
@@ -342,16 +473,17 @@ class MainActivity : Activity() {
                                         display: none !important;
                                     }
                                     #orbit-search-header {
-                                        background: #0a101e;
+                                        background: #090b0f;
                                         color: white;
                                         padding: 16px 14px 10px;
                                         font-family: Arial, sans-serif;
-                                        border-bottom: 1px solid #26364d;
+                                        border-bottom: 1px solid #292e37;
                                     }
                                     #orbit-search-header .orbit-brand {
                                         color: #00d2be;
-                                        font-size: 23px;
+                                        font-size: 22px;
                                         font-weight: bold;
+                                        letter-spacing: 2px;
                                         margin-bottom: 13px;
                                     }
                                     #orbit-search-header form {
@@ -361,11 +493,11 @@ class MainActivity : Activity() {
                                     #orbit-search-header input {
                                         flex: 1;
                                         min-width: 0;
-                                        border: 0;
+                                        border: 1px solid #343a45;
                                         outline: 0;
-                                        border-radius: 14px;
+                                        border-radius: 13px;
                                         padding: 13px;
-                                        background: #202e43;
+                                        background: #171b23;
                                         color: white;
                                         font-size: 16px;
                                     }
@@ -373,8 +505,8 @@ class MainActivity : Activity() {
                                         border: 0;
                                         border-radius: 13px;
                                         padding: 0 18px;
-                                        background: #00d2be;
-                                        color: #0a101e;
+                                        background: #f5f7fa;
+                                        color: #090b0f;
                                         font-size: 19px;
                                         font-weight: bold;
                                     }
@@ -385,7 +517,7 @@ class MainActivity : Activity() {
                                         margin-top: 15px;
                                     }
                                     #orbit-search-header .orbit-tabs a {
-                                        color: #aab8ca;
+                                        color: #a1a9b6;
                                         text-decoration: none;
                                         font-size: 13px;
                                         padding: 7px 3px;
@@ -433,7 +565,10 @@ class MainActivity : Activity() {
             }
 
             webChromeClient = object : WebChromeClient() {
-                override fun onProgressChanged(view: WebView?, progress: Int) {
+                override fun onProgressChanged(
+                    view: WebView?,
+                    progress: Int
+                ) {
                     progressBar.progress = progress
                     progressBar.visibility =
                         if (progress >= 100) View.GONE else View.VISIBLE
@@ -443,8 +578,12 @@ class MainActivity : Activity() {
             visibility = View.GONE
         }
 
+        // KEYBOARD SEARCH
         addressBar.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == EditorInfo.IME_ACTION_GO) {
+            if (
+                actionId == EditorInfo.IME_ACTION_GO ||
+                actionId == EditorInfo.IME_ACTION_SEARCH
+            ) {
                 navigate()
                 true
             } else {
@@ -452,6 +591,7 @@ class MainActivity : Activity() {
             }
         }
 
+        // MAIN CONTENT FRAME
         val contentFrame = FrameLayout(this).apply {
             addView(
                 homeScreen,
@@ -474,8 +614,8 @@ class MainActivity : Activity() {
         val bottomBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            setPadding(dp(8), dp(8), dp(8), dp(8))
-            setBackgroundColor(Color.rgb(14, 22, 37))
+            setPadding(dp(9), dp(8), dp(9), dp(8))
+            setBackgroundColor(Color.rgb(13, 16, 21))
         }
 
         val homeButton = makeAction("⌂") {
@@ -498,24 +638,32 @@ class MainActivity : Activity() {
             }
         }
 
-        listOf(homeButton, backButton, forwardButton, refreshButton).forEach {
+        listOf(
+            homeButton,
+            backButton,
+            forwardButton,
+            refreshButton
+        ).forEach {
             bottomBar.addView(
                 it,
-                LinearLayout.LayoutParams(0, dp(48), 1f).apply {
+                LinearLayout.LayoutParams(0, dp(47), 1f).apply {
                     marginStart = dp(4)
                     marginEnd = dp(4)
                 }
             )
         }
 
+        // ASSEMBLE SCREEN
         root.addView(header)
+
         root.addView(
             progressBar,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(3)
+                dp(2)
             )
         )
+
         root.addView(
             contentFrame,
             LinearLayout.LayoutParams(
@@ -524,12 +672,14 @@ class MainActivity : Activity() {
                 1f
             )
         )
+
         root.addView(bottomBar)
 
         setContentView(root)
 
         if (savedInstanceState != null) {
             val restored = webView.restoreState(savedInstanceState)
+
             if (restored == null) {
                 showHome()
             } else {
@@ -546,6 +696,7 @@ class MainActivity : Activity() {
         webView.visibility = View.GONE
         addressBar.setText("")
         addressBar.clearFocus()
+        progressBar.visibility = View.GONE
     }
 
     private fun openUrl(url: String) {
@@ -567,11 +718,16 @@ class MainActivity : Activity() {
             if (
                 input.startsWith("http://") ||
                 input.startsWith("https://")
-            ) input else "https://$input"
+            ) {
+                input
+            } else {
+                "https://$input"
+            }
         }
 
         val keyboard = getSystemService(Context.INPUT_METHOD_SERVICE)
                 as InputMethodManager
+
         keyboard.hideSoftInputFromWindow(addressBar.windowToken, 0)
 
         addressBar.clearFocus()
@@ -587,7 +743,10 @@ class MainActivity : Activity() {
 
     @Deprecated("Deprecated in Android")
     override fun onBackPressed() {
-        if (webView.visibility == View.VISIBLE && webView.canGoBack()) {
+        if (
+            webView.visibility == View.VISIBLE &&
+            webView.canGoBack()
+        ) {
             webView.goBack()
         } else if (webView.visibility == View.VISIBLE) {
             showHome()
