@@ -328,6 +328,107 @@ class MainActivity : Activity() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     addressBar.setText(url ?: "")
                     progressBar.visibility = View.GONE
+
+                    if (url?.contains("duckduckgo.com") == true) {
+                        view?.evaluateJavascript("""
+                            (function() {
+                                if (window.location.hostname.indexOf('duckduckgo.com') === -1) return;
+                                if (document.getElementById('orbit-search-header')) return;
+
+                                var style = document.createElement('style');
+                                style.id = 'orbit-search-style';
+                                style.textContent = `
+                                    #header, header, .header-wrap, .header--mobile {
+                                        display: none !important;
+                                    }
+                                    #orbit-search-header {
+                                        background: #0a101e;
+                                        color: white;
+                                        padding: 16px 14px 10px;
+                                        font-family: Arial, sans-serif;
+                                        border-bottom: 1px solid #26364d;
+                                    }
+                                    #orbit-search-header .orbit-brand {
+                                        color: #00d2be;
+                                        font-size: 23px;
+                                        font-weight: bold;
+                                        margin-bottom: 13px;
+                                    }
+                                    #orbit-search-header form {
+                                        display: flex;
+                                        gap: 8px;
+                                    }
+                                    #orbit-search-header input {
+                                        flex: 1;
+                                        min-width: 0;
+                                        border: 0;
+                                        outline: 0;
+                                        border-radius: 14px;
+                                        padding: 13px;
+                                        background: #202e43;
+                                        color: white;
+                                        font-size: 16px;
+                                    }
+                                    #orbit-search-header button {
+                                        border: 0;
+                                        border-radius: 13px;
+                                        padding: 0 18px;
+                                        background: #00d2be;
+                                        color: #0a101e;
+                                        font-size: 19px;
+                                        font-weight: bold;
+                                    }
+                                    #orbit-search-header .orbit-tabs {
+                                        display: flex;
+                                        justify-content: space-around;
+                                        gap: 8px;
+                                        margin-top: 15px;
+                                    }
+                                    #orbit-search-header .orbit-tabs a {
+                                        color: #aab8ca;
+                                        text-decoration: none;
+                                        font-size: 13px;
+                                        padding: 7px 3px;
+                                    }
+                                    #orbit-search-header .orbit-tabs a:first-child {
+                                        color: #00d2be;
+                                        border-bottom: 2px solid #00d2be;
+                                    }
+                                `;
+                                document.head.appendChild(style);
+
+                                var bar = document.createElement('div');
+                                bar.id = 'orbit-search-header';
+                                bar.innerHTML =
+                                    '<div class="orbit-brand">◉ ORBIT</div>' +
+                                    '<form action="https://duckduckgo.com/" method="get">' +
+                                    '<input name="q" type="search" aria-label="Search" placeholder="ابحث في الإنترنت...">' +
+                                    '<button type="submit">➜</button>' +
+                                    '</form>' +
+                                    '<nav class="orbit-tabs">' +
+                                    '<a data-type="" href="#">الكل</a>' +
+                                    '<a data-type="images" href="#">الصور</a>' +
+                                    '<a data-type="videos" href="#">الفيديو</a>' +
+                                    '<a data-type="news" href="#">الأخبار</a>' +
+                                    '</nav>';
+
+                                var params = new URLSearchParams(window.location.search);
+                                var query = params.get('q') || '';
+                                bar.querySelector('input').value = query;
+
+                                bar.querySelectorAll('.orbit-tabs a').forEach(function(link) {
+                                    var target = new URL('https://duckduckgo.com/');
+                                    target.searchParams.set('q', query);
+                                    if (link.dataset.type) {
+                                        target.searchParams.set('ia', link.dataset.type);
+                                    }
+                                    link.href = target.toString();
+                                });
+
+                                document.body.insertBefore(bar, document.body.firstChild);
+                            })();
+                        """.trimIndent(), null)
+                    }
                 }
             }
 
