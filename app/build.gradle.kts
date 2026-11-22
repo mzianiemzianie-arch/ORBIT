@@ -16,6 +16,25 @@ android {
         versionName = "0.1.0"
     }
 
+    signingConfigs {
+        create("orbit") {
+            storeFile = file(
+                System.getenv("ORBIT_KEYSTORE_PATH")
+                    ?: error("ORBIT_KEYSTORE_PATH is missing")
+            )
+            storePassword = System.getenv("ORBIT_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("ORBIT_KEY_ALIAS")
+            keyPassword = System.getenv("ORBIT_KEYSTORE_PASSWORD")
+            storeType = "pkcs12"
+        }
+    }
+
+    buildTypes {
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("orbit")
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
