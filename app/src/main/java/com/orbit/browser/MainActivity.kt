@@ -244,7 +244,7 @@ class MainActivity : Activity() {
             )
         }
 
-        addShortcut(rowOne, "G", "Google", "https://www.google.com")
+        addShortcut(rowOne, "D", "DuckDuckGo", "https://duckduckgo.com")
         addShortcut(rowOne, "▶", "YouTube", "https://www.youtube.com")
         addShortcut(rowTwo, "f", "Facebook", "https://www.facebook.com")
         addShortcut(rowTwo, "W", "Wikipedia", "https://www.wikipedia.org")
@@ -460,7 +460,7 @@ class MainActivity : Activity() {
             input.contains(" ") ||
             (!input.contains(".") && !input.startsWith("http"))
         ) {
-            "https://www.google.com/search?q=" +
+            "https://duckduckgo.com/?q=" +
                 URLEncoder.encode(input, "UTF-8")
         } else {
             if (
