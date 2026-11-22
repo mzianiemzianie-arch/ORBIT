@@ -5,6 +5,8 @@
     <application
         android:allowBackup="false"
         android:label="ORBIT"
+        android:icon="@drawable/orbit_logo"
+        android:roundIcon="@drawable/orbit_logo"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="false">
 
