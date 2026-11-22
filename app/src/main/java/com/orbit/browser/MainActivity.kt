@@ -1,6 +1,24 @@
 package com.orbit.browser
 
 import android.app.Activity
+import android.app.AlertDialog
+import android.graphics.BitmapFactory
+import android.widget.ImageView
+import android.widget.Toast
+import androidx.credentials.ClearCredentialStateRequest
+import androidx.credentials.CredentialManager
+import androidx.credentials.CredentialManagerCallback
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.GetCredentialResponse
+import androidx.credentials.exceptions.ClearCredentialException
+import androidx.credentials.exceptions.GetCredentialException
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.GoogleAuthProvider
+import java.net.URL
+import java.util.concurrent.Executor
 import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.Color
@@ -35,6 +53,9 @@ class MainActivity : Activity() {
     private lateinit var homeScreen: ScrollView
     private lateinit var onboarding: FrameLayout
     private lateinit var prefs: SharedPreferences
+    private lateinit var firebaseAuth: FirebaseAuth
+    private lateinit var credentialManager: CredentialManager
+    private var accountDialog: AlertDialog? = null
     private lateinit var recentList: LinearLayout
     private lateinit var jumpRow: LinearLayout
     private lateinit var jumpSection: View
@@ -311,9 +332,301 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun showAccountDialog() {
+        val user = firebaseAuth.currentUser
+
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(24), dp(25), dp(24), dp(24))
+            background = rounded(surfaceColor, 24, borderColor)
+        }
+
+        panel.addView(
+            makeText(
+                if (user == null) "Your ORBIT account" else "Your profile",
+                20f,
+                primaryText,
+                true
+            ).apply { gravity = Gravity.CENTER },
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(38)
+            )
+        )
+
+        if (user == null) {
+            panel.addView(
+                makeText(
+                    "Sign in to ORBIT with your Google account.",
+                    13f,
+                    secondaryText
+                ).apply { gravity = Gravity.CENTER },
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(55)
+                )
+            )
+
+            val signInButton = TextView(this).apply {
+                text = "G   Continue with Google"
+                textSize = 15f
+                setTypeface(null, Typeface.BOLD)
+                setTextColor(Color.WHITE)
+                gravity = Gravity.CENTER
+                background = gradient(accentColor, accentLight, 18)
+                isClickable = true
+                isFocusable = true
+            }
+
+            panel.addView(
+                signInButton,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(52)
+                ).apply {
+                    topMargin = dp(12)
+                }
+            )
+
+            signInButton.setOnClickListener {
+                accountDialog?.dismiss()
+                startGoogleSignIn()
+            }
+        } else {
+            val avatar = ImageView(this).apply {
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(accentColor)
+                }
+                clipToOutline = true
+            }
+
+            panel.addView(
+                avatar,
+                LinearLayout.LayoutParams(dp(82), dp(82)).apply {
+                    topMargin = dp(15)
+                    bottomMargin = dp(12)
+                }
+            )
+
+            val photoUrl = user.photoUrl?.toString()
+            if (!photoUrl.isNullOrBlank()) {
+                Thread {
+                    try {
+                        val bitmap = URL(photoUrl).openStream().use {
+                            BitmapFactory.decodeStream(it)
+                        }
+                        if (bitmap != null) {
+                            runOnUiThread {
+                                avatar.setImageBitmap(bitmap)
+                            }
+                        }
+                    } catch (_: Exception) {
+                    }
+                }.start()
+            }
+
+            panel.addView(
+                makeText(
+                    user.displayName ?: "ORBIT user",
+                    18f,
+                    primaryText,
+                    true
+                ).apply { gravity = Gravity.CENTER },
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(35)
+                )
+            )
+
+            panel.addView(
+                makeText(
+                    user.email ?: "",
+                    13f,
+                    secondaryText
+                ).apply { gravity = Gravity.CENTER },
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(30)
+                )
+            )
+
+            val signOutButton = TextView(this).apply {
+                text = "Sign out"
+                textSize = 14f
+                setTypeface(null, Typeface.BOLD)
+                setTextColor(Color.WHITE)
+                gravity = Gravity.CENTER
+                background = rounded(elevatedColor, 16, borderColor)
+                isClickable = true
+                isFocusable = true
+            }
+
+            panel.addView(
+                signOutButton,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(48)
+                ).apply {
+                    topMargin = dp(20)
+                }
+            )
+
+            signOutButton.setOnClickListener {
+                accountDialog?.dismiss()
+                signOutFromGoogle()
+            }
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(panel)
+            .create()
+
+        accountDialog = dialog
+        dialog.setOnDismissListener {
+            if (accountDialog === dialog) accountDialog = null
+        }
+
+        dialog.show()
+        dialog.window?.setBackgroundDrawable(
+            rounded(Color.TRANSPARENT, 24)
+        )
+        dialog.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.88f).toInt(),
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+    }
+
+    private fun startGoogleSignIn() {
+        try {
+            val googleIdOption = GetGoogleIdOption.Builder()
+                .setFilterByAuthorizedAccounts(false)
+                .setServerClientId(getString(R.string.default_web_client_id))
+                .build()
+
+            val request = GetCredentialRequest.Builder()
+                .addCredentialOption(googleIdOption)
+                .build()
+
+            val mainExecutor = Executor { command ->
+                runOnUiThread(command)
+            }
+
+            credentialManager.getCredentialAsync(
+                this,
+                request,
+                null,
+                mainExecutor,
+                object : CredentialManagerCallback<
+                    GetCredentialResponse,
+                    GetCredentialException
+                > {
+                    override fun onResult(result: GetCredentialResponse) {
+                        val credential = result.credential
+
+                        if (
+                            credential is CustomCredential &&
+                            credential.type ==
+                            GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+                        ) {
+                            try {
+                                val googleCredential =
+                                    GoogleIdTokenCredential.createFrom(
+                                        credential.data
+                                    )
+
+                                val firebaseCredential =
+                                    GoogleAuthProvider.getCredential(
+                                        googleCredential.idToken,
+                                        null
+                                    )
+
+                                firebaseAuth.signInWithCredential(firebaseCredential)
+                                    .addOnCompleteListener(this@MainActivity) { task ->
+                                        if (task.isSuccessful) {
+                                            Toast.makeText(
+                                                this@MainActivity,
+                                                "Welcome to ORBIT!",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                            showAccountDialog()
+                                        } else {
+                                            Toast.makeText(
+                                                this@MainActivity,
+                                                task.exception?.localizedMessage
+                                                    ?: "Google sign-in failed",
+                                                Toast.LENGTH_LONG
+                                            ).show()
+                                        }
+                                    }
+                            } catch (e: Exception) {
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    e.localizedMessage ?: "Could not read Google account",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        } else {
+                            Toast.makeText(
+                                this@MainActivity,
+                                "Google account credential was not received",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+
+                    override fun onError(e: GetCredentialException) {
+                        Toast.makeText(
+                            this@MainActivity,
+                            e.localizedMessage ?: "Google sign-in was cancelled",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            )
+        } catch (e: Exception) {
+            Toast.makeText(
+                this,
+                e.localizedMessage ?: "Could not start Google sign-in",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    private fun signOutFromGoogle() {
+        firebaseAuth.signOut()
+
+        val mainExecutor = Executor { command ->
+            runOnUiThread(command)
+        }
+
+        try {
+            credentialManager.clearCredentialStateAsync(
+                ClearCredentialStateRequest(),
+                null,
+                mainExecutor,
+                object : CredentialManagerCallback<Void?, ClearCredentialException> {
+                    override fun onResult(result: Void?) {
+                        showAccountDialog()
+                    }
+
+                    override fun onError(e: ClearCredentialException) {
+                        showAccountDialog()
+                    }
+                }
+            )
+        } catch (_: Exception) {
+            showAccountDialog()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        firebaseAuth = FirebaseAuth.getInstance()
+        credentialManager = CredentialManager.create(this)
         prefs = getSharedPreferences("orbit", Context.MODE_PRIVATE)
 
         window.statusBarColor = backgroundColor
@@ -407,6 +720,27 @@ class MainActivity : Activity() {
             addressBar,
             LinearLayout.LayoutParams(0, dp(44), 1f).apply {
                 marginStart = dp(10)
+            }
+        )
+
+        val accountButton = TextView(this).apply {
+            text = "♙"
+            textSize = 23f
+            setTextColor(accentLight)
+            gravity = Gravity.CENTER
+            background = rounded(surfaceColor, 14, borderColor)
+            isClickable = true
+            isFocusable = true
+            contentDescription = "Account"
+            setOnClickListener {
+                showAccountDialog()
+            }
+        }
+
+        topBar.addView(
+            accountButton,
+            LinearLayout.LayoutParams(dp(42), dp(44)).apply {
+                marginStart = dp(7)
             }
         )
 
