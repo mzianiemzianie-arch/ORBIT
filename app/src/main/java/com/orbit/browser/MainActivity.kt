@@ -355,11 +355,9 @@ class MainActivity : Activity() {
             LinearLayout.LayoutParams(dp(40), dp(42))
         )
 
-        val logoIcon = TextView(this).apply {
-            text = "◍"
-            textSize = 22f
-            setTextColor(accentLight)
-            gravity = Gravity.CENTER
+        val logoIcon = android.widget.ImageView(this).apply {
+            setImageResource(R.drawable.orbit_logo)
+            scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
         }
 
         val logoText = TextView(this).apply {
@@ -902,16 +900,9 @@ class MainActivity : Activity() {
             )
         }
 
-        val logoCircle = TextView(this).apply {
-            text = "◍"
-            textSize = 64f
-            setTextColor(accentLight)
-            gravity = Gravity.CENTER
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(Color.rgb(16, 14, 30))
-                setStroke(dp(2), accentColor)
-            }
+        val logoCircle = android.widget.ImageView(this).apply {
+            setImageResource(R.drawable.orbit_logo)
+            scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
         }
 
         obContent.addView(
