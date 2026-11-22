@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "742832330506",
+    "project_id": "orbit-browser-77891",
+    "storage_bucket": "orbit-browser-77891.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:742832330506:android:9ec125bb7a3788ed748cf3",
+        "android_client_info": {
+          "package_name": "com.orbit.browser"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "742832330506-90fl0docovgoqg13v5kodm6g00vr907e.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.orbit.browser",
+            "certificate_hash": "fb902aef36ce502fc8e46cea5c917d6f11a96174"
+          }
+        },
+        {
+          "client_id": "742832330506-0e00qdafhfboclv74iv47ik2sfuh9ir0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAYoAonoLPmMDZOfspUJD-6pSWnxuw-TeY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "742832330506-0e00qdafhfboclv74iv47ik2sfuh9ir0.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

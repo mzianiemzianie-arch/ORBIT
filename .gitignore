@@ -5,3 +5,9 @@ local.properties
 .idea/
 *.iml
 .DS_Store
+
+# Local backup files
+*.backup.kt
+*.backup
+google-services.old.json
+google-services.previous.json
