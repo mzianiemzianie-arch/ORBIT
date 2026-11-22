@@ -835,38 +835,79 @@ class MainActivity : Activity() {
             )
         )
 
-        // BOTTOM NAVIGATION
+        // ORBIT FLOATING BOTTOM NAVIGATION
         val bottomBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            setPadding(dp(9), dp(8), dp(9), dp(8))
-            setBackgroundColor(Color.rgb(12, 12, 19))
+            setPadding(dp(16), dp(9), dp(16), dp(12))
+            setBackgroundColor(backgroundColor)
+        }
+
+        val navPill = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(dp(7), dp(6), dp(7), dp(6))
+            background = rounded(
+                Color.rgb(18, 17, 27),
+                24,
+                borderColor
+            )
+            elevation = dp(8).toFloat()
+        }
+
+        val homeAction = makeAction("⌂") { showHome() }.apply {
+            textSize = 25f
+            background = gradient(accentColor, accentLight, 18)
+            setTextColor(Color.WHITE)
+        }
+
+        val backAction = makeAction("‹") {
+            if (webView.canGoBack()) webView.goBack()
+        }.apply {
+            textSize = 29f
+            background = rounded(Color.TRANSPARENT, 18)
+        }
+
+        val forwardAction = makeAction("›") {
+            if (webView.canGoForward()) webView.goForward()
+        }.apply {
+            textSize = 29f
+            background = rounded(Color.TRANSPARENT, 18)
+        }
+
+        val refreshAction = makeAction("↻") {
+            if (webView.visibility == View.VISIBLE) {
+                webView.reload()
+            } else {
+                showHome()
+            }
+        }.apply {
+            textSize = 24f
+            background = rounded(Color.TRANSPARENT, 18)
         }
 
         listOf(
-            makeAction("⌂") { showHome() },
-            makeAction("‹") {
-                if (webView.canGoBack()) webView.goBack()
-            },
-            makeAction("›") {
-                if (webView.canGoForward()) webView.goForward()
-            },
-            makeAction("↻") {
-                if (webView.visibility == View.VISIBLE) {
-                    webView.reload()
-                } else {
-                    showHome()
-                }
-            }
-        ).forEach {
-            bottomBar.addView(
-                it,
-                LinearLayout.LayoutParams(0, dp(46), 1f).apply {
-                    marginStart = dp(4)
-                    marginEnd = dp(4)
+            homeAction,
+            backAction,
+            forwardAction,
+            refreshAction
+        ).forEach { button ->
+            navPill.addView(
+                button,
+                LinearLayout.LayoutParams(0, dp(44), 1f).apply {
+                    marginStart = dp(3)
+                    marginEnd = dp(3)
                 }
             )
         }
+
+        bottomBar.addView(
+            navPill,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(58)
+            )
+        )
 
         main.addView(bottomBar)
         root.addView(
