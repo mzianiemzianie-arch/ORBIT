@@ -60,6 +60,8 @@ class MainActivity : Activity() {
     private lateinit var jumpRow: LinearLayout
     private lateinit var jumpSection: View
     private lateinit var recentSection: View
+    private lateinit var contentFrame: FrameLayout
+    private var profileScreen: ScrollView? = null
 
     // ORBIT Purple Night palette
     private val backgroundColor = Color.rgb(8, 8, 13)
@@ -551,7 +553,7 @@ class MainActivity : Activity() {
                                                 "Welcome to ORBIT!",
                                                 Toast.LENGTH_SHORT
                                             ).show()
-                                            showAccountDialog()
+                                            showProfile()
                                         } else {
                                             Toast.makeText(
                                                 this@MainActivity,
@@ -609,16 +611,16 @@ class MainActivity : Activity() {
                 mainExecutor,
                 object : CredentialManagerCallback<Void?, ClearCredentialException> {
                     override fun onResult(result: Void?) {
-                        showAccountDialog()
+                        showProfile()
                     }
 
                     override fun onError(e: ClearCredentialException) {
-                        showAccountDialog()
+                        showProfile()
                     }
                 }
             )
         } catch (_: Exception) {
-            showAccountDialog()
+            showProfile()
         }
     }
 
@@ -733,7 +735,7 @@ class MainActivity : Activity() {
             isFocusable = true
             contentDescription = "Account"
             setOnClickListener {
-                showAccountDialog()
+                showProfile()
             }
         }
 
@@ -1142,7 +1144,7 @@ class MainActivity : Activity() {
         }
 
         // CONTENT FRAME
-        val contentFrame = FrameLayout(this).apply {
+        contentFrame = FrameLayout(this).apply {
             addView(
                 homeScreen,
                 FrameLayout.LayoutParams(
@@ -1433,7 +1435,321 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun showProfile() {
+        val screen = profileScreen ?: ScrollView(this).also {
+            profileScreen = it
+            contentFrame.addView(
+                it,
+                FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+            )
+        }
+
+        screen.removeAllViews()
+        screen.visibility = View.VISIBLE
+
+        val page = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(22), dp(22), dp(22), dp(30))
+            setBackgroundColor(backgroundColor)
+        }
+
+        screen.addView(
+            page,
+            ScrollView.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        val backButton = makeAction("‹") {
+            showHome()
+        }.apply {
+            textSize = 32f
+            gravity = Gravity.CENTER
+            background = rounded(surfaceColor, 14, borderColor)
+        }
+
+        header.addView(
+            backButton,
+            LinearLayout.LayoutParams(dp(46), dp(46))
+        )
+
+        val heading = makeText("My Profile", 21f, primaryText, true)
+        header.addView(
+            heading,
+            LinearLayout.LayoutParams(0, dp(46), 1f).apply {
+                marginStart = dp(15)
+            }
+        )
+
+        page.addView(header)
+
+        val user = firebaseAuth.currentUser
+
+        if (user == null) {
+            val guestCard = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                setPadding(dp(22), dp(28), dp(22), dp(25))
+                background = rounded(surfaceColor, 22, borderColor)
+            }
+
+            val guestAvatar = TextView(this).apply {
+                text = "♙"
+                textSize = 38f
+                gravity = Gravity.CENTER
+                setTextColor(accentLight)
+                background = rounded(elevatedColor, 50)
+            }
+
+            guestCard.addView(
+                guestAvatar,
+                LinearLayout.LayoutParams(dp(88), dp(88))
+            )
+
+            guestCard.addView(
+                makeText("Welcome to ORBIT", 20f, primaryText, true).apply {
+                    gravity = Gravity.CENTER
+                },
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(45)
+                ).apply {
+                    topMargin = dp(18)
+                }
+            )
+
+            guestCard.addView(
+                makeText(
+                    "Sign in with Google to connect your ORBIT account.",
+                    13f,
+                    secondaryText
+                ).apply {
+                    gravity = Gravity.CENTER
+                },
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(48)
+                )
+            )
+
+            val signInButton = makeAction("G   Continue with Google") {
+                startGoogleSignIn()
+            }.apply {
+                gravity = Gravity.CENTER
+                textSize = 15f
+                setTypeface(null, Typeface.BOLD)
+                setTextColor(Color.WHITE)
+                background = gradient(accentColor, accentLight, 17)
+            }
+
+            guestCard.addView(
+                signInButton,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(52)
+                ).apply {
+                    topMargin = dp(18)
+                }
+            )
+
+            page.addView(
+                guestCard,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    topMargin = dp(30)
+                }
+            )
+        } else {
+            val profileCard = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                setPadding(dp(20), dp(25), dp(20), dp(24))
+                background = rounded(surfaceColor, 22, borderColor)
+            }
+
+            val avatar = ImageView(this).apply {
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(accentColor)
+                }
+                clipToOutline = true
+            }
+
+            profileCard.addView(
+                avatar,
+                LinearLayout.LayoutParams(dp(100), dp(100))
+            )
+
+            val photoUrl = user.photoUrl?.toString()
+            if (!photoUrl.isNullOrBlank()) {
+                Thread {
+                    try {
+                        val bitmap = URL(photoUrl).openStream().use {
+                            BitmapFactory.decodeStream(it)
+                        }
+                        if (bitmap != null) {
+                            runOnUiThread {
+                                avatar.setImageBitmap(bitmap)
+                            }
+                        }
+                    } catch (_: Exception) {
+                    }
+                }.start()
+            }
+
+            profileCard.addView(
+                makeText(
+                    user.displayName ?: "ORBIT user",
+                    20f,
+                    primaryText,
+                    true
+                ).apply { gravity = Gravity.CENTER },
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(42)
+                ).apply {
+                    topMargin = dp(15)
+                }
+            )
+
+            profileCard.addView(
+                makeText(
+                    user.email ?: "",
+                    13f,
+                    secondaryText
+                ).apply { gravity = Gravity.CENTER },
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(30)
+                )
+            )
+
+            val providerLabel = TextView(this).apply {
+                text = "●  Google Account"
+                textSize = 12f
+                setTextColor(accentLight)
+                gravity = Gravity.CENTER
+                background = rounded(elevatedColor, 20)
+                setPadding(dp(15), dp(8), dp(15), dp(8))
+            }
+
+            profileCard.addView(
+                providerLabel,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    dp(36)
+                ).apply {
+                    topMargin = dp(12)
+                }
+            )
+
+            page.addView(
+                profileCard,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    topMargin = dp(30)
+                }
+            )
+
+            page.addView(
+                makeText("ACCOUNT INFORMATION", 12f, secondaryText, true),
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(42)
+                ).apply {
+                    topMargin = dp(20)
+                }
+            )
+
+            val infoCard = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(17), dp(15), dp(17), dp(15))
+                background = rounded(surfaceColor, 18, borderColor)
+            }
+
+            infoCard.addView(
+                makeText("Display name", 12f, secondaryText)
+            )
+            infoCard.addView(
+                makeText(user.displayName ?: "ORBIT user", 15f, primaryText, true),
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(35)
+                )
+            )
+            infoCard.addView(
+                View(this).apply {
+                    setBackgroundColor(borderColor)
+                },
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(1)
+                )
+            )
+            infoCard.addView(
+                makeText("Email address", 12f, secondaryText),
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(30)
+                ).apply {
+                    topMargin = dp(10)
+                }
+            )
+            infoCard.addView(
+                makeText(user.email ?: "", 14f, primaryText)
+            )
+
+            page.addView(
+                infoCard,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            )
+
+            val signOutButton = makeAction("Sign out") {
+                signOutFromGoogle()
+            }.apply {
+                gravity = Gravity.CENTER
+                textSize = 15f
+                setTypeface(null, Typeface.BOLD)
+                setTextColor(Color.WHITE)
+                background = rounded(elevatedColor, 16, borderColor)
+            }
+
+            page.addView(
+                signOutButton,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(52)
+                ).apply {
+                    topMargin = dp(25)
+                }
+            )
+        }
+
+        homeScreen.visibility = View.GONE
+        webView.visibility = View.GONE
+        addressBar.clearFocus()
+        progressBar.visibility = View.GONE
+    }
+
     private fun showHome() {
+        profileScreen?.visibility = View.GONE
         homeScreen.visibility = View.VISIBLE
         webView.visibility = View.GONE
         addressBar.setText("")
@@ -1490,6 +1806,8 @@ class MainActivity : Activity() {
                 .apply()
 
             onboarding.visibility = View.GONE
+        } else if (profileScreen?.visibility == View.VISIBLE) {
+            showHome()
         } else if (
             webView.visibility == View.VISIBLE &&
             webView.canGoBack()
